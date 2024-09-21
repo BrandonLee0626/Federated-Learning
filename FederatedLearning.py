@@ -52,3 +52,24 @@ def batch_data(data_shard, BATCH_SIZE):
 clients_batched = dict()
 for (client_name, data) in clients.items():
     clients_batched[client_name] = batch_data(data, BATCH_SIZE=BATCH_SIZE)
+
+class Net(nn.Module):
+    def __init__(self):
+        super(Net, self).__init__()
+        self.fc1 = nn.Linear(28*28, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 10)
+
+    def foward(self, x):
+        x = x.view(-1, 28*28)
+        x = self.fc1(x)
+        x = F.sigmoid(x)
+        x = self.fc2(x)
+        x = F.sigmoid(x)
+        x = self.fc3(x)
+        x = F.log_softmax(x, dim=1)
+        return x
+    
+model = Net().to(DEVICE)
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
+criterion = nn.CrossEntropyLoss()
