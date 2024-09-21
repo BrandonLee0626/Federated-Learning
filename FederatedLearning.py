@@ -2,7 +2,7 @@ import numpy as np
 import random
 
 import torch
-import torch.nn
+import torch.nn as nn
 import torch.functional as F
 from torchvision import transforms, datasets
 
@@ -42,3 +42,13 @@ def creat_clients(num_clients=10, initial='clients'):
     return {client_names[i] : data for (i, data) in enumerate(shards)} 
 
 clients = creat_clients()
+
+def batch_data(data_shard, BATCH_SIZE):
+    dataset = torch.utils.data.TensorDataset(data_shard[0], data_shard[1])
+    return torch.utils.data.DataLoader(dataset = dataset,
+                                       batch_size = BATCH_SIZE,
+                                       shuffle = True)
+
+clients_batched = dict()
+for (client_name, data) in clients.items():
+    clients_batched[client_name] = batch_data(data, BATCH_SIZE=BATCH_SIZE)
