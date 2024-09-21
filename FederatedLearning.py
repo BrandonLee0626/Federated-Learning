@@ -73,3 +73,17 @@ class Net(nn.Module):
 model = Net().to(DEVICE)
 optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
 criterion = nn.CrossEntropyLoss()
+
+def weight_scalling_factor(clients_trn_data, client_name):
+    client_names = list(clients_trn_data.keys())
+
+    global_count = sum([len(clients_trn_data[client_name]) for client_name in client_names])
+    local_count = len(clients_trn_data[client_name])
+
+    return local_count/global_count
+
+def scale_model_weights(weights, scalar):
+    return [weight * scalar for weight in weights]
+
+def sum_scaled_weights(scaled_weights_list):
+    return [torch.sum(grad_list_tuple, 1) for grad_list_tuple in scaled_weights_list]
