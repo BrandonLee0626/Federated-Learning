@@ -25,15 +25,20 @@ test_dataset = datasets.MNIST(root = "../data/MNIST",
                               train = False,
                               transform = transforms.ToTensor())
 
-train_loader = torch.utils.data.DataLoader(dataset = train_dataset,
-                                           batch_size = BATCH_SIZE,
-                                           shuffle = True)
-
 test_loader = torch.utils.data.DataLoader(dataset = test_dataset,
                                           batch_size = BATCH_SIZE,
                                           shuffle = False)
 
-for (X_train, y_train) in train_loader:
-    print('X_train:', X_train.size(), 'type:', X_train.type())
-    print('y_train:', y_train.size(), 'type:', y_train.type())
-    break
+def creat_clients(num_clients=10, initial='clients'):
+    client_names = [f'{initial}_{i+1}' for i in range(num_clients)]
+
+    size = len(train_dataset) // num_clients
+    shards = torch.utils.data.DataLoader(dataset = train_dataset,
+                                         batch_size = size,
+                                         shuffle = True)
+    
+    assert(len(shards) == len(client_names))
+
+    return {client_names[i] : data for (i, data) in enumerate(shards)} 
+
+clients = creat_clients()
