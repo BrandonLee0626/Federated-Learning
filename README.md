@@ -4,6 +4,7 @@
 1. FedAvg 수식 이해하기
     수식에서 loss function의 parameter가 되는 model은 update된 model
 2. 이해한 수식 기반으로 client랑 server 구현하기
+3. train이 완료되고 weight가 어떤 type으로 나오는지 파악 필요
 
 참고자료
 
