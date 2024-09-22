@@ -6,6 +6,9 @@
 2. 이해한 수식 기반으로 client랑 server 구현하기
 3. train이 완료되고 weight가 어떤 type으로 나오는지 파악 필요
 
+layer가 3개인 model -> 각 layer 별로 weight랑 bias가 있을 것
+그럼 FedAvg를 각 layer의 weight별로 진행, bias별로 진행
+
 참고자료
 
 Federated Learning 기본틀: https://towardsdatascience.com/federated-learning-a-step-by-step-implementation-in-tensorflow-aac568283399
