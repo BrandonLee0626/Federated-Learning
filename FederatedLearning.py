@@ -142,13 +142,19 @@ def federated_learning(global_model, comm_rounds=100):
             scaled_local_fc3_bias_list.append(scaled_fc3_bias)
             
         average_fc1_weight = sum_scaled_weights(scaled_local_fc1_wieght_list)
+        global_model.fc1.weight.data = average_fc1_weight
         average_fc1_bias = sum_scaled_weights(scaled_local_fc1_bias_list)
+        global_model.fc1.bias.data = average_fc1_bias
 
         average_fc2_weight = sum_scaled_weights(scaled_local_fc2_wieght_list)
+        global_model.fc2.weight.data = average_fc2_weight
         average_fc2_bias = sum_scaled_weights(scaled_local_fc2_bias_list)
+        global_model.fc2.bias.data = average_fc2_bias
 
         average_fc3_weight = sum_scaled_weights(scaled_local_fc3_wieght_list)
+        global_model.fc3.weight.data = average_fc3_weight
         average_fc3_bias = sum_scaled_weights(scaled_local_fc3_bias_list)
+        global_model.fc3.bias.data = average_fc3_bias
 
 def evaluate(model, test_loader):
     model.eval()
