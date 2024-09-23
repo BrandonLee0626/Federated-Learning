@@ -3,7 +3,7 @@ import random
 
 import torch
 import torch.nn as nn
-import torch.functional as F
+import torch.nn.functional as F
 from torchvision import transforms, datasets
 
 if torch.cuda.is_available():
@@ -74,7 +74,7 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, 10)
 
-    def foward(self, x):
+    def forward(self, x):
         x = x.view(-1, 28*28)
         x = self.fc1(x)
         x = F.sigmoid(x)
@@ -112,8 +112,9 @@ def federated_learning(global_model, comm_rounds=100):
         scaled_local_fc3_bias_list = list()
 
         client_names = list(clients_batched.keys())
+        random.shuffle(client_names)
 
-        for client_name in random.shuffle(client_names):
+        for client_name in client_names:
             local_model = Net().to(DEVICE)
             local_model.fc1.weight.data = global_weight['fc1']
             local_model.fc1.bias.data = global_bias['fc1']
