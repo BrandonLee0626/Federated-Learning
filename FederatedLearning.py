@@ -61,11 +61,11 @@ def weight_scalling_factor(clients_trn_data, client_name):
 
     return local_count/global_count
 
-def scale_model_weights(weights, scalar):
-    return [weight * scalar for weight in weights]
+def scale_model_parameter(parameter, scalar):
+    return parameter*scalar
 
 def sum_scaled_weights(scaled_weights_list):
-    return [torch.sum(grad_list_tuple, 1) for grad_list_tuple in scaled_weights_list]
+    return sum(scaled_weights_list)
 
 class Net(nn.Module):
     def __init__(self):
@@ -85,11 +85,11 @@ class Net(nn.Module):
         return x
     
 global_model = Net().to(DEVICE)
-optimizer = torch.optim.SGD(global_model.parameters(), lr=0.01, momentum=0.5)
 criterion = nn.CrossEntropyLoss()
 
-def train(model, train_loader, optimizer, log_interval):
+def train(model, train_loader):
     model.train()
+    optimizer = torch.optim.SGD(global_model.parameters(), lr=0.01, momentum=0.5)
     for batch_idx, (image, label) in enumerate(train_loader):
         image = image.to(DEVICE)
         label = label.to(DEVICE)
@@ -98,3 +98,71 @@ def train(model, train_loader, optimizer, log_interval):
         loss = criterion(output, label)
         loss.backward()
         optimizer.step()
+
+def federated_learning(global_model, comm_rounds=100):
+    for comm_round in range(comm_rounds):
+        global_weight = {'fc1': global_model.fc1.weight.data, 'fc2':global_model.fc2.weight.data, 'fc3': global_model.fc3.weight.data}
+        global_bias = {'fc1': global_model.fc1.bias.data, 'fc2': global_model.fc2.bias.data, 'fc3': global_model.fc3.bias.data}
+
+        scaled_local_fc1_wieght_list = list()
+        scaled_local_fc1_bias_list = list()
+        scaled_local_fc2_wieght_list = list()
+        scaled_local_fc2_bias_list = list()
+        scaled_local_fc3_wieght_list = list()
+        scaled_local_fc3_bias_list = list()
+
+        client_names = list(clients_batched.keys())
+
+        for client_name in random.shuffle(client_names):
+            local_model = Net().to(DEVICE)
+            local_model.fc1.weight.data = global_weight['fc1']
+            local_model.fc1.bias.data = global_bias['fc1']
+            local_model.fc2.weight.data = global_weight['fc1']
+            local_model.fc2.bias.data = global_bias['fc2']
+            local_model.fc3.weight.data = global_weight['fc3']
+            local_model.fc3.bias.data = global_bias['fc3']
+
+            train(local_model, clients_batched[client_name])
+
+            scaling_factor = weight_scalling_factor(clients_batched, client_name)
+
+            scaled_fc1_weight = scale_model_parameter(local_model.fc1.weight.data, scaling_factor)
+            scaled_local_fc1_wieght_list.append(scaled_fc1_weight)
+            scaled_fc2_weight = scale_model_parameter(local_model.fc2.weight.data, scaling_factor)
+            scaled_local_fc2_wieght_list.append(scaled_fc2_weight)
+            scaled_fc3_weight = scale_model_parameter(local_model.fc3.weight.data, scaling_factor)
+            scaled_local_fc3_wieght_list.append(scaled_fc3_weight)
+            
+            scaled_fc1_bias = scale_model_parameter(local_model.fc1.bias.data, scaling_factor)
+            scaled_local_fc1_bias_list.append(scaled_fc1_bias)
+            scaled_fc2_bias = scale_model_parameter(local_model.fc2.bias.data, scaling_factor)
+            scaled_local_fc2_bias_list.append(scaled_fc2_bias)
+            scaled_fc3_bias = scale_model_parameter(local_model.fc3.bias.data, scaling_factor)
+            scaled_local_fc3_bias_list.append(scaled_fc3_bias)
+            
+        average_fc1_weight = sum_scaled_weights(scaled_local_fc1_wieght_list)
+        average_fc1_bias = sum_scaled_weights(scaled_local_fc1_bias_list)
+
+        average_fc2_weight = sum_scaled_weights(scaled_local_fc2_wieght_list)
+        average_fc2_bias = sum_scaled_weights(scaled_local_fc2_bias_list)
+
+        average_fc3_weight = sum_scaled_weights(scaled_local_fc3_wieght_list)
+        average_fc3_bias = sum_scaled_weights(scaled_local_fc3_bias_list)
+
+def evaluate(model, test_loader):
+    model.eval()
+    test_loss = 0
+    correct = 0
+    
+    with torch.no_grad():
+        for image, label in test_loader:
+            image = image.to(DEVICE)
+            label = label.to(DEVICE)
+            output = model(image)
+            test_loss += criterion(output, label).item()
+            prediction = output.max(1, keepdim=True)[1]
+            correct += prediction.eq(label.view_as(prediction)).sum().item()
+    
+    test_loss /= (len(test_loader.dataset)/ BATCH_SIZE)
+    test_accuracy = 100. * correct/len(test_loader.dataset)
+    return test_loss, test_accuracy
