@@ -58,7 +58,7 @@ clients_batched = dict()
 for (client_name, data) in clients.items():
     clients_batched[client_name] = batch_data(data, BATCH_SIZE=BATCH_SIZE)
 
-def weight_scalling_factor(clients_trn_data, client_name):
+def weight_scaling_factor(clients_trn_data, client_name):
     client_names = list(clients_trn_data.keys())
 
     global_count = sum([len(clients_trn_data[client_name]) for client_name in client_names])
@@ -102,7 +102,7 @@ def train(model, train_loader, optimizer):
         loss.backward()
         optimizer.step()
 
-def FedSGD(global_model, global_optimizer, EPOCHS=10, comm_rounds=10):
+def FedSGD(global_model, comm_rounds=10):
     for comm_round in range(comm_rounds):
         global_weight = {'fc1': global_model.fc1.weight.data, 'fc2':global_model.fc2.weight.data, 'fc3': global_model.fc3.weight.data}
         global_bias = {'fc1': global_model.fc1.bias.data, 'fc2': global_model.fc2.bias.data, 'fc3': global_model.fc3.bias.data}
@@ -119,6 +119,8 @@ def FedSGD(global_model, global_optimizer, EPOCHS=10, comm_rounds=10):
 
         for client_name in client_names:
             local_model = Net().to(DEVICE)
+            local_optimizer = torch.optim.SGD(local_model.parameters(), lr=0.01, momentum=0.5)
+
             local_model.fc1.weight.data = global_weight['fc1']
             local_model.fc1.bias.data = global_bias['fc1']
             local_model.fc2.weight.data = global_weight['fc2']
@@ -126,10 +128,10 @@ def FedSGD(global_model, global_optimizer, EPOCHS=10, comm_rounds=10):
             local_model.fc3.weight.data = global_weight['fc3']
             local_model.fc3.bias.data = global_bias['fc3']
 
-            for EPOCH in range(EPOCHS):
-              train(local_model, clients_batched[client_name], global_optimizer)
+            
+            train(local_model, clients_batched[client_name], local_optimizer)
 
-            scaling_factor = weight_scalling_factor(clients_batched, client_name)
+            scaling_factor = weight_scaling_factor(clients_batched, client_name)
 
             scaled_fc1_weight = scale_model_parameter(local_model.fc1.weight.data, scaling_factor)
             scaled_local_fc1_wieght_list.append(scaled_fc1_weight)
@@ -161,7 +163,7 @@ def FedSGD(global_model, global_optimizer, EPOCHS=10, comm_rounds=10):
         average_fc3_bias = sum_scaled_weights(scaled_local_fc3_bias_list)
         global_model.fc3.bias.data = average_fc3_bias
 
-def FedAvg(global_model, global_optimizer, C, EPOCHS=10, comm_rounds=10):
+def FedAvg(global_model, C, EPOCHS=10, comm_rounds=10):
     for comm_round in range(comm_rounds):
         global_weight = {'fc1': global_model.fc1.weight.data, 'fc2':global_model.fc2.weight.data, 'fc3': global_model.fc3.weight.data}
         global_bias = {'fc1': global_model.fc1.bias.data, 'fc2': global_model.fc2.bias.data, 'fc3': global_model.fc3.bias.data}
@@ -180,6 +182,8 @@ def FedAvg(global_model, global_optimizer, C, EPOCHS=10, comm_rounds=10):
 
         for client_name in client_names:
             local_model = Net().to(DEVICE)
+            local_optimizer = torch.optim.SGD(local_model.parameters(), lr=0.01, momentum=0.5)
+
             local_model.fc1.weight.data = global_weight['fc1']
             local_model.fc1.bias.data = global_bias['fc1']
             local_model.fc2.weight.data = global_weight['fc2']
@@ -188,9 +192,9 @@ def FedAvg(global_model, global_optimizer, C, EPOCHS=10, comm_rounds=10):
             local_model.fc3.bias.data = global_bias['fc3']
 
             for EPOCH in EPOCHS:
-              train(local_model, clients_batched[client_name], global_optimizer)
+              train(local_model, clients_batched[client_name], local_optimizer)
 
-            scaling_factor = weight_scalling_factor(clients_batched, client_name)
+            scaling_factor = weight_scaling_factor(clients_batched, client_name)
 
             scaled_fc1_weight = scale_model_parameter(local_model.fc1.weight.data, scaling_factor)
             scaled_local_fc1_wieght_list.append(scaled_fc1_weight)
@@ -241,24 +245,22 @@ def evaluate(model, test_loader):
     return test_loss, test_accuracy
 
 baseline_model = Net().to(DEVICE)
-baseline_optimizer = torch.optim.SGD(baseline_model.parameters(), lr=0.01, momentum=0.5)
 
 baseline_test_accuracies = list()
 
 for comm_rounds in range(0,50, 5):
-  FedSGD(baseline_model, baseline_optimizer, comm_rounds=comm_rounds)
+  FedSGD(baseline_model, comm_rounds=comm_rounds)
   test_loss, test_accuracy = evaluate(baseline_model, test_loader)
   baseline_test_accuracies.append(test_accuracy)
 
 plt.plot(baseline_test_accuracies)
 
 global_model = Net().to(DEVICE)
-global_optimizer = torch.optim.SGD(global_model.parameters(), lr=0.01, momentum=0.5)
 
 global_test_accuracies = list()
 
 for comm_rounds in range(0,50, 5):
-  FedAvg(global_model, global_optimizer, comm_rounds=comm_rounds)
+  FedAvg(global_model, C=0.3, comm_rounds=comm_rounds)
   test_loss, test_accuracy = evaluate(global_model, test_loader)
   global_test_accuracies.append(test_accuracy)
 
