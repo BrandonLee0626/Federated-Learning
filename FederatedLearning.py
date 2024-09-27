@@ -243,25 +243,3 @@ def evaluate(model, test_loader):
     test_loss /= (len(test_loader.dataset)/ BATCH_SIZE)
     test_accuracy = 100. * correct/len(test_loader.dataset)
     return test_loss, test_accuracy
-
-baseline_model = Net().to(DEVICE)
-
-baseline_test_accuracies = list()
-
-for comm_rounds in range(0,50, 5):
-  FedSGD(baseline_model, comm_rounds=comm_rounds)
-  test_loss, test_accuracy = evaluate(baseline_model, test_loader)
-  baseline_test_accuracies.append(test_accuracy)
-
-plt.plot(baseline_test_accuracies)
-
-global_model = Net().to(DEVICE)
-
-global_test_accuracies = list()
-
-for comm_rounds in range(0,50, 5):
-  FedAvg(global_model, C=0.3, comm_rounds=comm_rounds)
-  test_loss, test_accuracy = evaluate(global_model, test_loader)
-  global_test_accuracies.append(test_accuracy)
-
-plt.plot(global_test_accuracies)
