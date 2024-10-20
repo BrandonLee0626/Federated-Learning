@@ -17,14 +17,11 @@ from torchvision import transforms, datasets
 
 import matplotlib.pyplot as plt
 
-if torch.cuda.is_available():
-    DEVICE = torch.device('cuda')
-else:
-    DEVICE = torch.device('cpu')
+DEVICE = torch.device('mps:0' if torch.backends.mps.is_available() else 'cpu')
 
 print("Using PyTorch version:", torch.__version__,' Device:', DEVICE)
 
-BATCH_SIZE = int(input('BATCH_SIZE: '))
+BATCH_SIZE = 32
 
 train_dataset = datasets.MNIST(root = "../data/MNIST",
                                train = True,
