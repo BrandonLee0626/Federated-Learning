@@ -17,14 +17,11 @@ from torchvision import transforms, datasets
 
 import matplotlib.pyplot as plt
 
-if torch.cuda.is_available():
-    DEVICE = torch.device('cuda')
-else:
-    DEVICE = torch.device('cpu')
+DEVICE = torch.device('mps:0' if torch.backends.mps.is_available() else 'cpu')
 
 print("Using PyTorch version:", torch.__version__,' Device:', DEVICE)
 
-BATCH_SIZE = int(input('BATCH_SIZE: '))
+BATCH_SIZE = 32
 
 train_dataset = datasets.MNIST(root = "../data/MNIST",
                                train = True,
@@ -116,11 +113,14 @@ def FedSGD(global_model, comm_rounds=10):
       client_names = list(clients_batched.keys())
       random.shuffle(client_names)
 
-      local_parameters = [list() for i in range(len(list(global_model.parameters())))]
+      local_parameters = [list() for i in global_model.parameters()]
 
       for client_name in client_names:
         local_model = Net().to(DEVICE)
         local_optimizer = torch.optim.SGD(local_model.parameters(), lr=0.01, momentum=0.5)
+
+        for key in global_model.state_dict().keys():
+          local_model.state_dict()[key].copy_(global_model.state_dict()[key])
 
         train(local_model, clients_batched[client_name], local_optimizer)
 
