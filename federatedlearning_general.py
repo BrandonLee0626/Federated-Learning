@@ -135,68 +135,34 @@ def FedSGD(global_model, comm_rounds=10):
       for i, key in enumerate(global_model.state_dict().keys()):
         global_model.state_dict()[key].copy_(average_parameters[i].data)
 
-def FedAvg(global_model, C, EPOCHS=10, comm_rounds=10):
+def FedAvg(global_model, C, EPOCHS=3, comm_rounds=10):
     for comm_round in range(comm_rounds):
-        global_weight = {'fc1': global_model.fc1.weight.data, 'fc2':global_model.fc2.weight.data, 'fc3': global_model.fc3.weight.data}
-        global_bias = {'fc1': global_model.fc1.bias.data, 'fc2': global_model.fc2.bias.data, 'fc3': global_model.fc3.bias.data}
+      m = int(max(C*len(clients_batched), 1))
+      client_names = list(clients_batched.keys())
+      client_names = random.sample(client_names, m)
 
-        scaled_local_fc1_wieght_list = list()
-        scaled_local_fc1_bias_list = list()
-        scaled_local_fc2_wieght_list = list()
-        scaled_local_fc2_bias_list = list()
-        scaled_local_fc3_wieght_list = list()
-        scaled_local_fc3_bias_list = list()
+      local_parameters = [list() for i in global_model.parameters()]
 
-        m = int(max(C*len(clients_batched), 1))
+      for client_name in client_names:
+        local_model = Net().to(DEVICE)
+        local_optimizer = torch.optim.SGD(local_model.parameters(), lr=0.01, momentum=0.5)
 
-        client_names = list(clients_batched.keys())
-        client_names = random.sample(client_names, m)
+        for key in global_model.state_dict().keys():
+          local_model.state_dict()[key].copy_(global_model.state_dict()[key])
+          
+        for EPOCH in range(EPOCHS):
+          train(local_model, clients_batched[client_name], local_optimizer)
 
-        for client_name in client_names:
-            local_model = Net().to(DEVICE)
-            local_optimizer = torch.optim.SGD(local_model.parameters(), lr=0.01, momentum=0.5)
+        local_parameter = list(local_model.parameters())
+        for i in range(len(local_parameter)):
+          local_parameters[i].append(local_parameter[i])
 
-            local_model.fc1.weight.data = global_weight['fc1']
-            local_model.fc1.bias.data = global_bias['fc1']
-            local_model.fc2.weight.data = global_weight['fc2']
-            local_model.fc2.bias.data = global_bias['fc2']
-            local_model.fc3.weight.data = global_weight['fc3']
-            local_model.fc3.bias.data = global_bias['fc3']
+      scaling_factor = parameter_scaling_factor(clients_batched, client_name)
 
-            for EPOCH in range(EPOCHS):
-              train(local_model, clients_batched[client_name], local_optimizer)
+      average_parameters = list(map(sum_scaled_parameters, [list(map(scale_model_parameter, [scaling_factor]*len(client_names), parameter)) for parameter in local_parameters]))
 
-            scaling_factor = parameter_scaling_factor(clients_batched, client_name)
-
-            scaled_fc1_weight = scale_model_parameter(local_model.fc1.weight.data, scaling_factor)
-            scaled_local_fc1_wieght_list.append(scaled_fc1_weight)
-            scaled_fc1_bias = scale_model_parameter(local_model.fc1.bias.data, scaling_factor)
-            scaled_local_fc1_bias_list.append(scaled_fc1_bias)
-
-            scaled_fc2_weight = scale_model_parameter(local_model.fc2.weight.data, scaling_factor)
-            scaled_local_fc2_wieght_list.append(scaled_fc2_weight)
-            scaled_fc2_bias = scale_model_parameter(local_model.fc2.bias.data, scaling_factor)
-            scaled_local_fc2_bias_list.append(scaled_fc2_bias)
-
-            scaled_fc3_weight = scale_model_parameter(local_model.fc3.weight.data, scaling_factor)
-            scaled_local_fc3_wieght_list.append(scaled_fc3_weight)
-            scaled_fc3_bias = scale_model_parameter(local_model.fc3.bias.data, scaling_factor)
-            scaled_local_fc3_bias_list.append(scaled_fc3_bias)
-
-        average_fc1_weight = sum_scaled_parameters(scaled_local_fc1_wieght_list)
-        global_model.fc1.weight.data = average_fc1_weight
-        average_fc1_bias = sum_scaled_parameters(scaled_local_fc1_bias_list)
-        global_model.fc1.bias.data = average_fc1_bias
-
-        average_fc2_weight = sum_scaled_parameters(scaled_local_fc2_wieght_list)
-        global_model.fc2.weight.data = average_fc2_weight
-        average_fc2_bias = sum_scaled_parameters(scaled_local_fc2_bias_list)
-        global_model.fc2.bias.data = average_fc2_bias
-
-        average_fc3_weight = sum_scaled_parameters(scaled_local_fc3_wieght_list)
-        global_model.fc3.weight.data = average_fc3_weight
-        average_fc3_bias = sum_scaled_parameters(scaled_local_fc3_bias_list)
-        global_model.fc3.bias.data = average_fc3_bias
+      for i, key in enumerate(global_model.state_dict().keys()):
+        global_model.state_dict()[key].copy_(average_parameters[i].data)
 
 def evaluate(model, test_loader):
     model.eval()
@@ -216,11 +182,11 @@ def evaluate(model, test_loader):
     test_accuracy = 100. * correct/len(test_loader.dataset)
     return test_loss, test_accuracy
 
-baseline_model = Net().to(DEVICE)
-
 baseline_test_accuracies = list()
 
 for comm_rounds in range(0,100, 5):
+  baseline_model = Net().to(DEVICE)
+
   FedSGD(baseline_model, comm_rounds=comm_rounds)
   test_loss, test_accuracy = evaluate(baseline_model, test_loader)
   baseline_test_accuracies.append(test_accuracy)
@@ -232,11 +198,11 @@ plt.title('FedSGD')
 
 plt.show()
 
-global_model = Net().to(DEVICE)
-
 global_test_accuracies = list()
 
 for comm_rounds in range(0,100, 5):
+  global_model = Net().to(DEVICE)
+  
   FedAvg(global_model, C=0.3, comm_rounds=comm_rounds)
   test_loss, test_accuracy = evaluate(global_model, test_loader)
   global_test_accuracies.append(test_accuracy)
