@@ -198,7 +198,7 @@ for comm_rounds in range(0,100, 5):
 plt.plot(range(0, 100, 5), baseline_test_accuracies)
 plt.xlabel('communication rounds')
 plt.ylabel('test accuracy(%)')
-plt.title('FedSGD')
+plt.title('FedSGD_Generalized')
 
 plt.show()
 
@@ -215,7 +215,7 @@ for comm_rounds in range(0,100, 5):
 plt.plot(range(0, 100, 5), global_test_accuracies)
 plt.xlabel('communication rounds')
 plt.ylabel('test accuracy(%)')
-plt.title('FedAvg')
+plt.title('FedAvg_Generalized')
 
 plt.show()
 
