@@ -130,8 +130,10 @@ def FedSGD(global_model, comm_rounds=10):
 
       scaling_factor = parameter_scaling_factor(clients_batched, client_name)
 
-      average_parameters = list(map(sum_scaled_parameters, [list(map(scale_model_parameter, [scaling_factor]*len(client_names), parameter)) for parameter in local_parameters]))
+      sum_parameters = list(map(sum, local_parameters))
 
+      average_parameters = [local_parameter*scaling_factor for local_parameter in sum_parameters]
+      
       for i, key in enumerate(global_model.state_dict().keys()):
         global_model.state_dict()[key].copy_(average_parameters[i].data)
 
@@ -159,7 +161,9 @@ def FedAvg(global_model, C, EPOCHS=3, comm_rounds=10):
 
       scaling_factor = parameter_scaling_factor(clients_batched, client_name)
 
-      average_parameters = list(map(sum_scaled_parameters, [list(map(scale_model_parameter, [scaling_factor]*len(client_names), parameter)) for parameter in local_parameters]))
+      sum_parameters = list(map(sum, local_parameters))
+
+      average_parameters = [local_parameter*scaling_factor for local_parameter in sum_parameters]
 
       for i, key in enumerate(global_model.state_dict().keys()):
         global_model.state_dict()[key].copy_(average_parameters[i].data)
@@ -203,7 +207,7 @@ global_test_accuracies = list()
 for comm_rounds in range(0,100, 5):
   global_model = Net().to(DEVICE)
   
-  FedAvg(global_model, C=0.3, comm_rounds=comm_rounds)
+  FedAvg(global_model, C=0.8, comm_rounds=comm_rounds)
   test_loss, test_accuracy = evaluate(global_model, test_loader)
   global_test_accuracies.append(test_accuracy)
 
